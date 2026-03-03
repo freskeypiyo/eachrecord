@@ -3,139 +3,191 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>100% Accurate Bill Splitter</title>
+    <title>Precise Bill Splitter (Official)</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; display: flex; justify-content: center; padding: 20px; }
-        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        h2 { color: #333; text-align: center; }
-        .input-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
-        button:hover { background: #45a049; }
-        #result { margin-top: 20px; padding: 15px; background: #e7f3fe; border-radius: 6px; display: none; }
-        .status { font-size: 12px; color: #888; text-align: center; margin-top: 10px; }
-        #auth-btn { background: #4285F4; margin-bottom: 20px; }
+        :root { --primary: #2563eb; --success: #16a34a; --bg: #f8fafc; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 420px; border: 1px solid #e2e8f0; }
+        h2 { margin-top: 0; color: #1e293b; text-align: center; font-size: 1.5rem; }
+        .user-tag { text-align: center; font-size: 0.85rem; color: #64748b; margin-bottom: 1.5rem; }
+        .input-group { margin-bottom: 1.2rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #475569; font-size: 0.9rem; }
+        input { width: 100%; padding: 0.75rem; border: 1.5px solid #cbd5e1; border-radius: 0.5rem; box-sizing: border-box; font-size: 1rem; transition: border-color 0.2s; }
+        input:focus { outline: none; border-color: var(--primary); }
+        button { width: 100%; padding: 0.8rem; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; font-size: 1rem; transition: transform 0.1s, opacity 0.2s; }
+        #auth-btn { background: #000; color: white; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        #calc-btn { background: var(--primary); color: white; display: none; }
+        button:active { transform: scale(0.98); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #result { margin-top: 1.5rem; padding: 1rem; border-radius: 0.5rem; background: #f0fdf4; border: 1px solid #bbf7d0; display: none; color: #166534; }
+        .status { margin-top: 1rem; font-size: 0.8rem; text-align: center; color: #64748b; }
+        .error { color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; padding: 0.5rem; border-radius: 0.4rem; font-size: 0.8rem; display: none; }
     </style>
 </head>
 <body>
 
-<div class="container">
+<div class="card">
     <h2>Bill Splitter</h2>
-    <p style="text-align: center; font-size: 12px;">Linked to: freskeypiyo@gmail.com</p>
+    <div class="user-tag">Linked to: freskeypiyo@gmail.com</div>
     
-    <button id="auth-btn" onclick="handleAuthClick()">Login with Google</button>
+    <div id="error-box" class="error"></div>
+
+    <!-- Login Section -->
+    <button id="auth-btn" onclick="handleAuthClick()">
+        <img src="https://www.google.com/favicon.ico" width="18"> Login with Google
+    </button>
     
-    <div id="app-content" style="display:none;">
+    <!-- App Section -->
+    <div id="app-ui" style="display: none;">
         <div class="input-group">
-            <label>Who Paid?</label>
-            <input type="text" id="payerName" placeholder="e.g. Rahul">
+            <label>Who Paid? (Party A)</label>
+            <input type="text" id="payerName" placeholder="Name of person who paid">
         </div>
         <div class="input-group">
             <label>Total Amount Paid</label>
-            <input type="number" id="totalAmount" step="0.01" placeholder="0.00">
+            <input type="number" id="totalAmt" step="0.01" placeholder="0.00">
         </div>
         <div class="input-group">
-            <label>Number of People (incl. payer)</label>
-            <input type="number" id="peopleCount" value="2">
+            <label>Number of People (Total)</label>
+            <input type="number" id="peopleCount" value="2" min="2">
         </div>
-        <button onclick="calculateAndRecord()">Calculate & Record</button>
-        
-        <div id="result"></div>
-        <div id="status-msg" class="status"></div>
+        <button id="calc-btn" onclick="processTransaction()">Calculate & Record Transaction</button>
     </div>
+
+    <div id="result"></div>
+    <div id="status-msg" class="status">Initializing...</div>
 </div>
 
-<script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-<script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+<!-- Load Google APIs -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
 
 <script>
     const CLIENT_ID = '950010994560-v7p6cem78h9fsdp102iq4immb36t95ls.apps.googleusercontent.com';
     const API_KEY = 'AIzaSyCWo9OP6-QhyKWpfuV5oonyuC32IQHoOtE';
-    const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID'; // <--- PUT YOUR SHEET ID HERE
-    const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+    // IMPORTANT: Create a Google Sheet and paste its ID here
+    const SPREADSHEET_ID = 'ENTER_YOUR_SPREADSHEET_ID_HERE'; 
 
     let tokenClient;
     let gapiInited = false;
     let gisInited = false;
 
+    // 1. Initialize Google API Client
     function gapiLoaded() {
         gapi.load('client', async () => {
-            await gapi.client.init({ apiKey: API_KEY, discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"] });
+            await gapi.client.init({
+                apiKey: AIzaSyCWo9OP6-QhyKWpfuV5oonyuC32IQHoOtE,
+                discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"],
+            });
             gapiInited = true;
+            checkLoading();
         });
     }
 
+    // 2. Initialize Google Identity Services
     function gisLoaded() {
         tokenClient = google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            callback: '', // defined later
+            client_id: 950010994560-v7p6cem78h9fsdp102iq4immb36t95ls.apps.googleusercontent.com,
+            scope: 'https://www.googleapis.com/auth/spreadsheets',
+            callback: '', // defined at login
         });
         gisInited = true;
+        checkLoading();
     }
 
+    function checkLoading() {
+        if (gapiInited && gisInited) {
+            document.getElementById('status-msg').innerText = "Ready to Login";
+        }
+    }
+
+    window.onload = () => {
+        gapiLoaded();
+        gisLoaded();
+    };
+
+    // 3. Handle Login
     function handleAuthClick() {
         tokenClient.callback = async (resp) => {
-            if (resp.error !== undefined) throw (resp);
-            document.getElementById('auth-btn').innerText = 'Logged In';
-            document.getElementById('app-content').style.display = 'block';
+            if (resp.error !== undefined) {
+                showError("Auth Failed: " + resp.error);
+                return;
+            }
+            document.getElementById('auth-btn').style.display = 'none';
+            document.getElementById('app-ui').style.display = 'block';
+            document.getElementById('calc-btn').style.display = 'block';
+            document.getElementById('status-msg').innerText = "Logged in as freskeypiyo@gmail.com";
         };
-        tokenClient.requestAccessToken({prompt: 'consent'});
+
+        if (gapi.client.getToken() === null) {
+            tokenClient.requestAccessToken({prompt: 'consent'});
+        } else {
+            tokenClient.requestAccessToken({prompt: ''});
+        }
     }
 
-    async function calculateAndRecord() {
+    // 4. Logic & Storage
+    async function processTransaction() {
         const payer = document.getElementById('payerName').value;
-        const total = parseFloat(document.getElementById('totalAmount').value);
-        const people = parseInt(document.getElementById('peopleCount').value);
+        const total = parseFloat(document.getElementById('totalAmt').value);
+        const count = parseInt(document.getElementById('peopleCount').value);
+        const status = document.getElementById('status-msg');
 
-        if (!payer || isNaN(total) || isNaN(people) || people < 1) {
-            alert("Please enter valid details");
+        if (!payer || isNaN(total) || total <= 0 || isNaN(count) || count < 2) {
+            showError("Please enter valid amount and at least 2 people.");
             return;
         }
 
-        // 100% Correct Calculation: Use Cents to avoid floating point errors
-        const totalInCents = Math.round(total * 100);
-        const shareInCents = Math.floor(totalInCents / people);
-        const remainder = totalInCents % people;
-        
-        // Amount others owe the payer
-        const owedPerPerson = shareInCents / 100;
-        const totalOwedToPayer = ((totalInCents - shareInCents) / 100).toFixed(2);
+        // 100% Correct Math using Cent-rounding
+        const totalCents = Math.round(total * 100);
+        const sharePerPersonCents = Math.floor(totalCents / count);
+        const totalOwedToPayerCents = totalCents - sharePerPersonCents;
 
-        // Display Result
-        const resDiv = document.getElementById('result');
-        resDiv.style.display = 'block';
-        resDiv.innerHTML = `
-            <strong>Split Result:</strong><br>
-            Each person pays: $${owedPerPerson.toFixed(2)}<br>
-            <span style="color: #d9534f">Other party/parties must pay <strong>$${totalOwedToPayer}</strong> to ${payer}.</span>
-        `;
+        const sharePerPerson = (sharePerPersonCents / 100).toFixed(2);
+        const totalOwedToPayer = (totalOwedToPayerCents / 100).toFixed(2);
 
-        // Record to Google Sheets
+        document.getElementById('calc-btn').disabled = true;
+        status.innerText = "Recording to Google Sheets...";
+
         try {
-            document.getElementById('status-msg').innerText = "Recording transaction...";
-            const range = 'Sheet1!A:E';
-            const values = [[
-                new Date().toLocaleString(),
-                payer,
-                total.toFixed(2),
-                owedPerPerson.toFixed(2),
-                totalOwedToPayer
-            ]];
-            
+            const row = [
+                new Date().toLocaleString(), // Date
+                payer,                       // Party who paid
+                total.toFixed(2),            // Total bill
+                sharePerPerson,              // Each person's share
+                totalOwedToPayer             // Total others must pay back
+            ];
+
             await gapi.client.sheets.spreadsheets.values.append({
                 spreadsheetId: SPREADSHEET_ID,
-                range: range,
+                range: 'Sheet1!A:E',
                 valueInputOption: 'USER_ENTERED',
-                resource: { values: values },
+                resource: { values: [row] },
             });
-            
-            document.getElementById('status-msg').innerText = "Transaction recorded permanently.";
+
+            const resDiv = document.getElementById('result');
+            resDiv.style.display = 'block';
+            resDiv.innerHTML = `
+                <strong>Calculation Complete:</strong><br>
+                Total: $${total.toFixed(2)}<br>
+                Each person owes: $${sharePerPerson}<br><br>
+                <span style="font-size:1.1rem"><strong>Other party must pay ${payer}: $${totalOwedToPayer}</strong></span>
+            `;
+            status.innerText = "Saved permanently to Google Sheets.";
+            document.getElementById('error-box').style.display = 'none';
+
         } catch (err) {
-            document.getElementById('status-msg').innerText = "Error saving to sheet. Check console.";
             console.error(err);
+            showError("Sheet Error: Make sure the Spreadsheet ID is correct and you have permission.");
+        } finally {
+            document.getElementById('calc-btn').disabled = false;
         }
+    }
+
+    function showError(msg) {
+        const err = document.getElementById('error-box');
+        err.innerText = msg;
+        err.style.display = 'block';
     }
 </script>
 </body>
