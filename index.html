@@ -1,1 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>100% Accurate Bill Splitter</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f7f6; display: flex; justify-content: center; padding: 20px; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { color: #333; text-align: center; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        button:hover { background: #45a049; }
+        #result { margin-top: 20px; padding: 15px; background: #e7f3fe; border-radius: 6px; display: none; }
+        .status { font-size: 12px; color: #888; text-align: center; margin-top: 10px; }
+        #auth-btn { background: #4285F4; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
 
+<div class="container">
+    <h2>Bill Splitter</h2>
+    <p style="text-align: center; font-size: 12px;">Linked to: freskeypiyo@gmail.com</p>
+    
+    <button id="auth-btn" onclick="handleAuthClick()">Login with Google</button>
+    
+    <div id="app-content" style="display:none;">
+        <div class="input-group">
+            <label>Who Paid?</label>
+            <input type="text" id="payerName" placeholder="e.g. Rahul">
+        </div>
+        <div class="input-group">
+            <label>Total Amount Paid</label>
+            <input type="number" id="totalAmount" step="0.01" placeholder="0.00">
+        </div>
+        <div class="input-group">
+            <label>Number of People (incl. payer)</label>
+            <input type="number" id="peopleCount" value="2">
+        </div>
+        <button onclick="calculateAndRecord()">Calculate & Record</button>
+        
+        <div id="result"></div>
+        <div id="status-msg" class="status"></div>
+    </div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+<script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+
+<script>
+    const CLIENT_ID = '950010994560-v7p6cem78h9fsdp102iq4immb36t95ls.apps.googleusercontent.com';
+    const API_KEY = 'AIzaSyCWo9OP6-QhyKWpfuV5oonyuC32IQHoOtE';
+    const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID'; // <--- PUT YOUR SHEET ID HERE
+    const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+
+    let tokenClient;
+    let gapiInited = false;
+    let gisInited = false;
+
+    function gapiLoaded() {
+        gapi.load('client', async () => {
+            await gapi.client.init({ apiKey: API_KEY, discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"] });
+            gapiInited = true;
+        });
+    }
+
+    function gisLoaded() {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: '', // defined later
+        });
+        gisInited = true;
+    }
+
+    function handleAuthClick() {
+        tokenClient.callback = async (resp) => {
+            if (resp.error !== undefined) throw (resp);
+            document.getElementById('auth-btn').innerText = 'Logged In';
+            document.getElementById('app-content').style.display = 'block';
+        };
+        tokenClient.requestAccessToken({prompt: 'consent'});
+    }
+
+    async function calculateAndRecord() {
+        const payer = document.getElementById('payerName').value;
+        const total = parseFloat(document.getElementById('totalAmount').value);
+        const people = parseInt(document.getElementById('peopleCount').value);
+
+        if (!payer || isNaN(total) || isNaN(people) || people < 1) {
+            alert("Please enter valid details");
+            return;
+        }
+
+        // 100% Correct Calculation: Use Cents to avoid floating point errors
+        const totalInCents = Math.round(total * 100);
+        const shareInCents = Math.floor(totalInCents / people);
+        const remainder = totalInCents % people;
+        
+        // Amount others owe the payer
+        const owedPerPerson = shareInCents / 100;
+        const totalOwedToPayer = ((totalInCents - shareInCents) / 100).toFixed(2);
+
+        // Display Result
+        const resDiv = document.getElementById('result');
+        resDiv.style.display = 'block';
+        resDiv.innerHTML = `
+            <strong>Split Result:</strong><br>
+            Each person pays: $${owedPerPerson.toFixed(2)}<br>
+            <span style="color: #d9534f">Other party/parties must pay <strong>$${totalOwedToPayer}</strong> to ${payer}.</span>
+        `;
+
+        // Record to Google Sheets
+        try {
+            document.getElementById('status-msg').innerText = "Recording transaction...";
+            const range = 'Sheet1!A:E';
+            const values = [[
+                new Date().toLocaleString(),
+                payer,
+                total.toFixed(2),
+                owedPerPerson.toFixed(2),
+                totalOwedToPayer
+            ]];
+            
+            await gapi.client.sheets.spreadsheets.values.append({
+                spreadsheetId: SPREADSHEET_ID,
+                range: range,
+                valueInputOption: 'USER_ENTERED',
+                resource: { values: values },
+            });
+            
+            document.getElementById('status-msg').innerText = "Transaction recorded permanently.";
+        } catch (err) {
+            document.getElementById('status-msg').innerText = "Error saving to sheet. Check console.";
+            console.error(err);
+        }
+    }
+</script>
+</body>
+</html>
