@@ -241,7 +241,7 @@
         function initGapi() {
             gapi.load('client', async () => {
                 await gapi.client.init({
-                    apiKey: AIzaSyCWo9OP6-QhyKWpfuV5oonyuC32IQHoOtE,
+                    apiKey: API_KEY,
                     discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"],
                 });
                 gapiInited = true;
@@ -252,7 +252,7 @@
 
         function initGis() {
             tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: 950010994560-v7p6cem78h9fsdp102iq4immb36t95ls.apps.googleusercontent.com,
+                client_id: CLIENT_ID,
                 scope: 'https://www.googleapis.com/auth/spreadsheets',
                 callback: '', // defined at login
             });
